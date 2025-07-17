@@ -99,6 +99,49 @@ jobs:
       - name: install frontend dependencies
         run: pnpm install
 
+      # 验证签名密钥（早期验证，避免浪费构建时间）
+      - name: Validate Tauri signing key
+        shell: bash
+        run: |
+          echo "🔍 验证签名密钥..."
+          
+          # 检查密钥是否存在
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY 密钥未设置"
+            exit 1
+          fi
+          
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
+            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY_PASSWORD 密码未设置"
+            exit 1
+          fi
+          
+          # 验证密钥格式（base64解码测试）
+          echo "🔐 验证密钥格式..."
+          if ! echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | base64 -d > /tmp/test-key.key 2>/dev/null; then
+            echo "❌ 错误: 私钥不是有效的base64格式"
+            exit 1
+          fi
+          
+          # 检查解码后的密钥文件大小
+          KEY_SIZE=$(stat -c%s /tmp/test-key.key 2>/dev/null || stat -f%z /tmp/test-key.key 2>/dev/null || echo "0")
+          if [ "$KEY_SIZE" -lt 100 ]; then
+            echo "❌ 错误: 解码后的私钥文件太小 ($KEY_SIZE bytes)，可能解码失败"
+            exit 1
+          fi
+          
+          # 尝试验证密钥格式（检查是否包含PEM头）
+          if ! grep -q "BEGIN.*PRIVATE KEY" /tmp/test-key.key; then
+            echo "❌ 错误: 解码后的文件不包含有效的私钥标识"
+            cat /tmp/test-key.key | head -5
+            exit 1
+          fi
+          
+          # 清理临时文件
+          rm -f /tmp/test-key.key
+          
+          echo "✅ 签名密钥验证通过！"
+
       # 设置是否为预发布
       - name: Set prerelease if tag contains beta
         id: set_prerelease
