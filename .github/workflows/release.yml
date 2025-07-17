@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g., v1.4.0)'
+        description: "Tag to build (e.g., v1.2.3)"
         required: true
         type: string
 
@@ -111,9 +111,18 @@ jobs:
             echo "prerelease=false" >> $GITHUB_ENV
           fi
 
+      # 设置签名环境变量
+      - name: Set signing environment
+        shell: bash
+        run: |
+          echo "TAURI_SIGNING_PRIVATE_KEY=${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" >> $GITHUB_ENV
+          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=" >> $GITHUB_ENV
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD}}
         with:
           tagName: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
           releaseName: "Release ${{ github.event.client_payload.tag || github.event.inputs.tag }}"
@@ -121,3 +130,4 @@ jobs:
           releaseDraft: false
           prerelease: ${{ env.prerelease }}
           args: ${{ matrix.args }}
+          includeUpdaterJson: true
