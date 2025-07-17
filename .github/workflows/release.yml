@@ -99,7 +99,7 @@ jobs:
       - name: install frontend dependencies
         run: pnpm install
 
-      # 验证签名密钥（早期验证，避免浪费构建时间）
+      # 验证签名密钥
       - name: Validate Tauri signing key
         shell: bash
         run: |
