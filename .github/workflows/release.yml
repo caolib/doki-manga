@@ -130,10 +130,15 @@ jobs:
             exit 1
           fi
           
-          # 尝试验证密钥格式（检查是否包含PEM头）
-          if ! grep -q "BEGIN.*PRIVATE KEY" /tmp/test-key.key; then
+          # 验证密钥格式（支持PEM和rsign格式）
+          if grep -q "BEGIN.*PRIVATE KEY" /tmp/test-key.key; then
+            echo "✅ 检测到PEM格式私钥"
+          elif grep -q "untrusted comment: rsign encrypted secret key" /tmp/test-key.key; then
+            echo "✅ 检测到rsign格式私钥"
+          else
             echo "❌ 错误: 解码后的文件不包含有效的私钥标识"
-            cat /tmp/test-key.key | head -5
+            echo "文件内容预览:"
+            cat /tmp/test-key.key | head -3
             exit 1
           fi
           
@@ -149,9 +154,9 @@ jobs:
         run: |
           TAG_NAME=${{ github.event.client_payload.tag || github.event.inputs.tag }}
           if [[ "$TAG_NAME" == *beta* ]]; then
-            echo "prerelease=true" >> $GITHUB_ENV
+            echo "prerelease=true" >> $GITHUB_OUTPUT
           else
-            echo "prerelease=false" >> $GITHUB_ENV
+            echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
       # 设置签名密钥文件
@@ -174,6 +179,6 @@ jobs:
           releaseName: "Release ${{ github.event.client_payload.tag || github.event.inputs.tag }}"
           releaseBody: ${{ needs.release-notes.outputs.release_body || 'See the assets to download this version and install.' }}
           releaseDraft: false
-          prerelease: ${{ env.prerelease }}
+          prerelease: ${{ steps.set_prerelease.outputs.prerelease }}
           args: ${{ matrix.args }}
           includeUpdaterJson: true
