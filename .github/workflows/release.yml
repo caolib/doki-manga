@@ -1,0 +1,123 @@
+name: "doki-manga-release"
+
+on:
+  repository_dispatch:
+    types: [build-release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v1.4.0)'
+        required: true
+        type: string
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-22.04
+    outputs:
+      release_body: ${{ steps.release_notes.outputs.release_body }}
+    steps:
+      - name: Checkout doki source code
+        uses: actions/checkout@v4
+        with:
+          repository: caolib/doki
+          ref: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - id: release_notes
+        continue-on-error: true
+        run: |
+          if [ -f "./docs/RELEASE.md" ]; then
+            {
+              echo 'release_body<<EOF'
+              cat "./docs/RELEASE.md"
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "release_body=See the assets to download this version and install." >> "$GITHUB_OUTPUT"
+          fi
+
+  publish-tauri:
+    needs: [release-notes]
+    if: always() && (needs.release-notes.result == 'success' || needs.release-notes.result == 'skipped')
+    permissions:
+      contents: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest" # for Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest" # for Intel based macs.
+            args: "--target x86_64-apple-darwin"
+          - platform: "ubuntu-22.04"
+            args: ""
+          - platform: "windows-latest"
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout doki source code
+        uses: actions/checkout@v4
+        with:
+          repository: caolib/doki
+          ref: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        continue-on-error: true
+        with:
+          workspaces: "./src-tauri -> target"
+          cache-on-failure: true
+          shared-key: ${{ matrix.platform }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: install frontend dependencies
+        run: pnpm install
+
+      # 设置是否为预发布
+      - name: Set prerelease if tag contains beta
+        id: set_prerelease
+        shell: bash
+        run: |
+          TAG_NAME=${{ github.event.client_payload.tag || github.event.inputs.tag }}
+          if [[ "$TAG_NAME" == *beta* ]]; then
+            echo "prerelease=true" >> $GITHUB_ENV
+          else
+            echo "prerelease=false" >> $GITHUB_ENV
+          fi
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
+          releaseName: "Release ${{ github.event.client_payload.tag || github.event.inputs.tag }}"
+          releaseBody: ${{ needs.release-notes.outputs.release_body || 'See the assets to download this version and install.' }}
+          releaseDraft: false
+          prerelease: ${{ env.prerelease }}
+          args: ${{ matrix.args }}
