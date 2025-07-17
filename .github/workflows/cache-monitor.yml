@@ -1,0 +1,69 @@
+name: "cache-monitor"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  cache-monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Check cache size and send alert
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: caches } = await github.rest.actions.getActionsCacheList({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            console.log(`Found ${caches.actions_caches.length} caches`);
+
+            // 计算总缓存大小
+            const totalSize = caches.actions_caches.reduce((sum, cache) => sum + cache.size_in_bytes, 0);
+            const totalSizeGB = totalSize / (1024 * 1024 * 1024);
+
+            console.log(`Total cache size: ${totalSizeGB.toFixed(2)} GB`);
+
+            // 显示缓存详情
+            const sortedCaches = caches.actions_caches
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            console.log('Cache Details:');
+            sortedCaches.forEach((cache, index) => {
+              const sizeMB = (cache.size_in_bytes / (1024 * 1024)).toFixed(2);
+              const createdAt = new Date(cache.created_at).toLocaleString();
+              console.log(`  ${index + 1}. ${cache.key} - ${sizeMB} MB (${createdAt})`);
+            });
+
+            // 检查是否超过7GB
+            const THRESHOLD_GB = 7;
+            if (totalSizeGB > THRESHOLD_GB) {
+              console.log(`Cache size (${totalSizeGB.toFixed(2)} GB) exceeds threshold (${THRESHOLD_GB} GB)`);
+              
+              // 创建 Issue 作为提醒
+              try {
+                const issueTitle = `缓存大小告警: ${totalSizeGB.toFixed(2)} GB (超过 ${THRESHOLD_GB} GB 阈值)`;
+                const issueBody = `当前缓存总大小为 ${totalSizeGB.toFixed(2)} GB，已超过 ${THRESHOLD_GB} GB 阈值，请及时清理。`;
+
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: issueTitle,
+                  body: issueBody,
+                  labels: ['cache-warning']
+                });
+                console.log('Cache warning issue created successfully');
+              } catch (error) {
+                console.log(`Failed to create issue: ${error.message}`);
+              }
+            } else {
+              console.log(`Cache size (${totalSizeGB.toFixed(2)} GB) is within threshold (${THRESHOLD_GB} GB)`);
+            }
