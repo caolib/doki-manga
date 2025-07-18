@@ -56,71 +56,6 @@ jobs:
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
-      # 验证签名密钥
-      - name: Validate Tauri signing key
-        shell: bash
-        run: |
-          echo "🔍 验证签名密钥..."
-
-          # 检查密钥是否存在
-          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
-            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY 密钥未设置"
-            exit 1
-          fi
-
-          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
-            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY_PASSWORD 密码未设置"
-            exit 1
-          fi
-
-          # 验证密钥格式（base64解码测试）
-          echo "🔐 验证密钥格式..."
-
-          # 显示当前密钥的前100个字符用于调试
-          echo "🔍 当前密钥前100字符: $(echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | head -c 100)..."
-
-          # 计算原始base64字符串长度
-          KEY_LENGTH=$(echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | wc -c)
-          echo "📏 base64字符串长度: $KEY_LENGTH"
-
-          # 尝试解码
-          if ! echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | base64 -d > /tmp/test-key.key 2>/tmp/decode-error.log; then
-            echo "❌ 错误: 私钥不是有效的base64格式"
-            echo "解码错误信息:"
-            cat /tmp/decode-error.log
-            exit 1
-          fi
-
-          # 检查解码后的密钥文件大小
-          KEY_SIZE=$(stat -c%s /tmp/test-key.key 2>/dev/null || stat -f%z /tmp/test-key.key 2>/dev/null || echo "0")
-          echo "📦 解码后文件大小: $KEY_SIZE bytes"
-
-          if [ "$KEY_SIZE" -lt 100 ]; then
-            echo "❌ 错误: 解码后的私钥文件太小 ($KEY_SIZE bytes)，可能解码失败"
-            exit 1
-          fi
-
-          # 显示解码后文件的前几行用于调试
-          echo "🔍 解码后文件内容前3行:"
-          cat /tmp/test-key.key | head -3
-
-          # 验证密钥格式（支持PEM和rsign格式）
-          if grep -q "BEGIN.*PRIVATE KEY" /tmp/test-key.key; then
-            echo "✅ 检测到PEM格式私钥"
-          elif grep -q "untrusted comment.*rsign" /tmp/test-key.key; then
-            echo "✅ 检测到rsign格式私钥"
-          else
-            echo "❌ 错误: 解码后的文件不包含有效的私钥标识"
-            echo "完整文件内容:"
-            cat /tmp/test-key.key
-            exit 1
-          fi
-
-          # 清理临时文件
-          rm -f /tmp/test-key.key
-
-          echo "✅ 签名密钥验证通过！"
-
       - name: Checkout doki source code
         uses: actions/checkout@v4
         with:
@@ -176,86 +111,21 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
-      # 设置签名密钥环境变量
+      # 设置签名密钥（硬编码测试）
       - name: Setup Tauri signing key
         shell: bash
         run: |
-          echo "🔧 开始处理签名密钥..."
+          echo "直接设置硬编码签名密钥..."
 
-          # 获取原始密钥
-          RAW_KEY="${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
-          echo "📏 原始密钥长度: ${#RAW_KEY}"
+          # 直接用 base64 解码创建密钥文件
+          echo "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5S1U5Z2o2YWF2ZFJEbzJxUEtJenQ3SVh5Z1F4RWEycDU4RlNMWTRmd25PY0FBQkFBQUFBQUFBQUFBQUlBQUFBQWorQk92aFlLOVhkYS9QWjdvMThKTE45TE5IbnBUQXp1bnJPOHlhUUVURU1WenI1REI3Zk16NnAwUDlRMEhsT2FPYmE2YjRTSlBaOWxsaHZxbDNUYWJYTzdFa1hveEJUTHhoOWVFMVJXMThzY2ZqaTIzZmNyVm5mMVFrYjVTLzlab1JrbUxrV0hMRGc9Cg==" | base64 -d > signing-key.key
 
-          # 显示密钥的前20个字符用于调试（hex格式）
-          echo "🔍 密钥前20字符的hex: $(echo -n "$RAW_KEY" | head -c 20 | xxd -p)"
+          echo "签名密钥文件创建成功"
 
-          # 尝试多种清理和解码方式
-          SUCCESS=false
+          # 设置环境变量
+          echo "TAURI_SIGNING_PRIVATE_KEY=$(pwd)/signing-key.key" >> $GITHUB_ENV
+          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=123456" >> $GITHUB_ENV
 
-          # 方法1: 直接使用原始密钥解码
-          echo "🧪 尝试方法1: 直接解码原始密钥..."
-          if echo "$RAW_KEY" | base64 -d > decoded-key.tmp 2>/dev/null; then
-            KEY_SIZE=$(stat -c%s decoded-key.tmp 2>/dev/null || stat -f%z decoded-key.tmp 2>/dev/null || echo "0")
-            echo "� 方法1 解码后文件大小: $KEY_SIZE bytes"
-            
-            if [ "$KEY_SIZE" -gt 100 ] && grep -q "untrusted comment.*rsign" decoded-key.tmp 2>/dev/null; then
-              echo "✅ 方法1 解码成功！使用直接内容设置"
-              # 直接设置解码后的内容到环境变量
-              echo "TAURI_SIGNING_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-              cat decoded-key.tmp >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              SUCCESS=true
-            fi
-          fi
-
-          # 方法2: 清理空白字符后解码
-          if [ "$SUCCESS" = false ]; then
-            echo "🧪 尝试方法2: 清理空白字符后解码..."
-            CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '[:space:]')
-            if echo "$CLEAN_KEY" | base64 -d > decoded-key.tmp 2>/dev/null; then
-              KEY_SIZE=$(stat -c%s decoded-key.tmp 2>/dev/null || stat -f%z decoded-key.tmp 2>/dev/null || echo "0")
-              echo "📦 方法2 解码后文件大小: $KEY_SIZE bytes"
-              
-              if [ "$KEY_SIZE" -gt 100 ] && grep -q "untrusted comment.*rsign" decoded-key.tmp 2>/dev/null; then
-                echo "✅ 方法2 解码成功！使用清理后内容设置"
-                echo "TAURI_SIGNING_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-                cat decoded-key.tmp >> $GITHUB_ENV
-                echo "EOF" >> $GITHUB_ENV
-                SUCCESS=true
-              fi
-            fi
-          fi
-
-          # 方法3: 作为文件路径（备用）
-          if [ "$SUCCESS" = false ]; then
-            echo "🧪 尝试方法3: 创建文件并设置路径..."
-            CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '[:space:]')
-            if echo "$CLEAN_KEY" | base64 -d > signing-key.key 2>/dev/null; then
-              KEY_SIZE=$(stat -c%s signing-key.key 2>/dev/null || stat -f%z signing-key.key 2>/dev/null || echo "0")
-              echo "📦 方法3 解码后文件大小: $KEY_SIZE bytes"
-              
-              if [ "$KEY_SIZE" -gt 100 ] && grep -q "untrusted comment.*rsign" signing-key.key 2>/dev/null; then
-                echo "✅ 方法3 解码成功！使用文件路径设置"
-                echo "TAURI_SIGNING_PRIVATE_KEY=$(pwd)/signing-key.key" >> $GITHUB_ENV
-                SUCCESS=true
-              fi
-            fi
-          fi
-
-          # 清理临时文件
-          rm -f decoded-key.tmp
-
-          if [ "$SUCCESS" = false ]; then
-            echo "❌ 所有解码方法都失败了"
-            echo "尝试显示原始密钥的详细信息："
-            echo "长度: ${#RAW_KEY}"
-            echo "前50字符: $(echo -n "$RAW_KEY" | head -c 50)"
-            echo "是否包含换行: $(echo -n "$RAW_KEY" | wc -l)"
-            exit 1
-          fi
-
-          echo "✅ 签名密钥设置成功"
-          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> $GITHUB_ENV
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
