@@ -56,6 +56,71 @@ jobs:
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
+      # 验证签名密钥
+      - name: Validate Tauri signing key
+        shell: bash
+        run: |
+          echo "🔍 验证签名密钥..."
+
+          # 检查密钥是否存在
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY 密钥未设置"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
+            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY_PASSWORD 密码未设置"
+            exit 1
+          fi
+
+          # 验证密钥格式（base64解码测试）
+          echo "🔐 验证密钥格式..."
+
+          # 显示当前密钥的前100个字符用于调试
+          echo "🔍 当前密钥前100字符: $(echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | head -c 100)..."
+
+          # 计算原始base64字符串长度
+          KEY_LENGTH=$(echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | wc -c)
+          echo "📏 base64字符串长度: $KEY_LENGTH"
+
+          # 尝试解码
+          if ! echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | base64 -d > /tmp/test-key.key 2>/tmp/decode-error.log; then
+            echo "❌ 错误: 私钥不是有效的base64格式"
+            echo "解码错误信息:"
+            cat /tmp/decode-error.log
+            exit 1
+          fi
+
+          # 检查解码后的密钥文件大小
+          KEY_SIZE=$(stat -c%s /tmp/test-key.key 2>/dev/null || stat -f%z /tmp/test-key.key 2>/dev/null || echo "0")
+          echo "📦 解码后文件大小: $KEY_SIZE bytes"
+
+          if [ "$KEY_SIZE" -lt 100 ]; then
+            echo "❌ 错误: 解码后的私钥文件太小 ($KEY_SIZE bytes)，可能解码失败"
+            exit 1
+          fi
+
+          # 显示解码后文件的前几行用于调试
+          echo "🔍 解码后文件内容前3行:"
+          cat /tmp/test-key.key | head -3
+
+          # 验证密钥格式（支持PEM和rsign格式）
+          if grep -q "BEGIN.*PRIVATE KEY" /tmp/test-key.key; then
+            echo "✅ 检测到PEM格式私钥"
+          elif grep -q "untrusted comment.*rsign" /tmp/test-key.key; then
+            echo "✅ 检测到rsign格式私钥"
+          else
+            echo "❌ 错误: 解码后的文件不包含有效的私钥标识"
+            echo "完整文件内容:"
+            cat /tmp/test-key.key
+            exit 1
+          fi
+
+          # 清理临时文件
+          rm -f /tmp/test-key.key
+
+          echo "✅ 签名密钥验证通过！"
+
       - name: Checkout doki source code
         uses: actions/checkout@v4
         with:
@@ -99,54 +164,6 @@ jobs:
       - name: install frontend dependencies
         run: pnpm install
 
-      # 验证签名密钥
-      - name: Validate Tauri signing key
-        shell: bash
-        run: |
-          echo "🔍 验证签名密钥..."
-          
-          # 检查密钥是否存在
-          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
-            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY 密钥未设置"
-            exit 1
-          fi
-          
-          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
-            echo "❌ 错误: TAURI_SIGNING_PRIVATE_KEY_PASSWORD 密码未设置"
-            exit 1
-          fi
-          
-          # 验证密钥格式（base64解码测试）
-          echo "🔐 验证密钥格式..."
-          if ! echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | base64 -d > /tmp/test-key.key 2>/dev/null; then
-            echo "❌ 错误: 私钥不是有效的base64格式"
-            exit 1
-          fi
-          
-          # 检查解码后的密钥文件大小
-          KEY_SIZE=$(stat -c%s /tmp/test-key.key 2>/dev/null || stat -f%z /tmp/test-key.key 2>/dev/null || echo "0")
-          if [ "$KEY_SIZE" -lt 100 ]; then
-            echo "❌ 错误: 解码后的私钥文件太小 ($KEY_SIZE bytes)，可能解码失败"
-            exit 1
-          fi
-          
-          # 验证密钥格式（支持PEM和rsign格式）
-          if grep -q "BEGIN.*PRIVATE KEY" /tmp/test-key.key; then
-            echo "✅ 检测到PEM格式私钥"
-          elif grep -q "untrusted comment: rsign encrypted secret key" /tmp/test-key.key; then
-            echo "✅ 检测到rsign格式私钥"
-          else
-            echo "❌ 错误: 解码后的文件不包含有效的私钥标识"
-            echo "文件内容预览:"
-            cat /tmp/test-key.key | head -3
-            exit 1
-          fi
-          
-          # 清理临时文件
-          rm -f /tmp/test-key.key
-          
-          echo "✅ 签名密钥验证通过！"
-
       # 设置是否为预发布
       - name: Set prerelease if tag contains beta
         id: set_prerelease
@@ -163,8 +180,28 @@ jobs:
       - name: Setup Tauri signing key
         shell: bash
         run: |
+          # 清理密钥字符串（移除所有空格、换行符等空白字符）
+          CLEAN_KEY=$(echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | tr -d '[:space:]')
+          echo "🔧 清理后的密钥长度: ${#CLEAN_KEY}"
+          
           # 创建私钥文件
-          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | base64 -d > signing-key.key
+          echo "$CLEAN_KEY" | base64 -d > signing-key.key
+          
+          # 验证解码成功
+          if [ ! -f "signing-key.key" ] || [ ! -s "signing-key.key" ]; then
+            echo "❌ 错误: 私钥文件创建失败"
+            exit 1
+          fi
+          
+          # 验证文件内容
+          if ! grep -q "untrusted comment.*rsign" signing-key.key; then
+            echo "❌ 错误: 私钥文件格式不正确"
+            cat signing-key.key | head -3
+            exit 1
+          fi
+          
+          echo "✅ 私钥文件创建成功"
+          
           # 设置环境变量为文件路径
           echo "TAURI_SIGNING_PRIVATE_KEY=$(pwd)/signing-key.key" >> $GITHUB_ENV
           echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> $GITHUB_ENV
