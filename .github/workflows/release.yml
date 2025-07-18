@@ -202,7 +202,7 @@ jobs:
           
           echo "✅ 私钥文件创建成功"
           
-          # 设置环境变量为文件路径
+          # 设置环境变量为文件路径（这是关键！）
           echo "TAURI_SIGNING_PRIVATE_KEY=$(pwd)/signing-key.key" >> $GITHUB_ENV
           echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> $GITHUB_ENV
 
