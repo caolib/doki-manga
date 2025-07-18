@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build (e.g., v1.2.3)"
+        description: 'Tag to build (e.g., v1.4.0)'
         required: true
         type: string
 
@@ -35,7 +35,6 @@ jobs:
           else
             echo "release_body=See the assets to download this version and install." >> "$GITHUB_OUTPUT"
           fi
-
   publish-tauri:
     needs: [release-notes]
     if: always() && (needs.release-notes.result == 'success' || needs.release-notes.result == 'skipped')
@@ -69,7 +68,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4.1.0
         with:
@@ -106,36 +104,17 @@ jobs:
         run: |
           TAG_NAME=${{ github.event.client_payload.tag || github.event.inputs.tag }}
           if [[ "$TAG_NAME" == *beta* ]]; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> $GITHUB_ENV
           else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_ENV
           fi
-
-      # 设置签名密钥（硬编码测试）
-      - name: Setup Tauri signing key
-        shell: bash
-        run: |
-          echo "直接设置硬编码签名密钥..."
-
-          # 直接用 base64 解码创建密钥文件
-          echo "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5S1U5Z2o2YWF2ZFJEbzJxUEtJenQ3SVh5Z1F4RWEycDU4RlNMWTRmd25PY0FBQkFBQUFBQUFBQUFBQUlBQUFBQWorQk92aFlLOVhkYS9QWjdvMThKTE45TE5IbnBUQXp1bnJPOHlhUUVURU1WenI1REI3Zk16NnAwUDlRMEhsT2FPYmE2YjRTSlBaOWxsaHZxbDNUYWJYTzdFa1hveEJUTHhoOWVFMVJXMThzY2ZqaTIzZmNyVm5mMVFrYjVTLzlab1JrbUxrV0hMRGc9Cg==" | base64 -d > signing-key.key
-
-          echo "签名密钥文件创建成功"
-
-          # 设置环境变量
-          echo "TAURI_SIGNING_PRIVATE_KEY=$(pwd)/signing-key.key" >> $GITHUB_ENV
-          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=123456" >> $GITHUB_ENV
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
           releaseName: "Release ${{ github.event.client_payload.tag || github.event.inputs.tag }}"
           releaseBody: ${{ needs.release-notes.outputs.release_body || 'See the assets to download this version and install.' }}
           releaseDraft: false
-          prerelease: ${{ steps.set_prerelease.outputs.prerelease }}
+          prerelease: ${{ env.prerelease }}
           args: ${{ matrix.args }}
-          includeUpdaterJson: true
