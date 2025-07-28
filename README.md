@@ -17,9 +17,38 @@
 
 ## 1 介绍
 
-doki是一个集漫画、轻小说、动画于一体的桌面应用，提供简洁快速的漫画阅读体验，支持win、mac、linux、android，只有windows简单测试过
+doki是拷贝漫画的一个第三方客户端，提供简洁快速的漫画阅读体验，支持win、mac、linux、android平台，只有windows和android简单测试过
 
-### 1.漫画
+### 1.1 移动端
+
+<table>
+  <tr>
+    <td><img src="https://s2.loli.net/2025/07/28/RO469YL1DCmtBvk.png"/></td>
+  </tr>
+  <tr>
+    <td><img src="https://s2.loli.net/2025/07/28/v8Xyu961gHTGZsp.png"/></td>
+  </tr>
+</table> 
+
+### 1.2 桌面端
+
+<table>
+  <tr>
+    <td><img src="https://s2.loli.net/2025/06/21/eGMfoDwXhdm9q2z.png"/></td>
+    <td><img src="https://s2.loli.net/2025/06/21/U5CsVo9R42beQGA.png"/></td>
+  </tr>
+  <tr>
+    <td><img src="https://s2.loli.net/2025/06/21/UryZHueIz8N4ng6.png"/></td>
+    <td><img src="https://s2.loli.net/2025/06/21/8q4HKDjrsNMl9IF.png"/></td>
+  </tr>  
+  <tr>
+    <td><img src="https://s2.loli.net/2025/06/21/Nwoe2DCagTHf3xn.png"/></td>
+    <td><img src="https://s2.loli.net/2025/06/21/Kirp1LucGdH8YOy.png"/></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="https://s2.loli.net/2025/06/21/Yf5pVHRLk9314Fl.png"/></td>
+  </tr>
+</table> 
 
 <table>
   <tr>
@@ -40,7 +69,6 @@ doki是一个集漫画、轻小说、动画于一体的桌面应用，提供简�
 </table> 
 
 
-### 2.轻小说
 
 <table>
   <tr>
@@ -53,7 +81,7 @@ doki是一个集漫画、轻小说、动画于一体的桌面应用，提供简�
   </tr>
 </table>
 
-### 3.动画
+### 
 
 <table>
   <tr>
