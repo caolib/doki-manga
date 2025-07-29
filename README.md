@@ -29,7 +29,6 @@ doki是拷贝漫画的一个第三方客户端，提供简洁快速的漫画阅�
     <td><img src="https://s2.loli.net/2025/07/28/v8Xyu961gHTGZsp.png"/></td>
   </tr>
 </table> 
-
 ### 1.2 桌面端
 
 <table>
@@ -49,26 +48,6 @@ doki是拷贝漫画的一个第三方客户端，提供简洁快速的漫画阅�
     <td colspan="2"><img src="https://s2.loli.net/2025/06/21/Yf5pVHRLk9314Fl.png"/></td>
   </tr>
 </table> 
-
-<table>
-  <tr>
-    <td><img src="https://s2.loli.net/2025/06/21/eGMfoDwXhdm9q2z.png"/></td>
-    <td><img src="https://s2.loli.net/2025/06/21/U5CsVo9R42beQGA.png"/></td>
-  </tr>
-  <tr>
-    <td><img src="https://s2.loli.net/2025/06/21/UryZHueIz8N4ng6.png"/></td>
-    <td><img src="https://s2.loli.net/2025/06/21/8q4HKDjrsNMl9IF.png"/></td>
-  </tr>  
-  <tr>
-    <td><img src="https://s2.loli.net/2025/06/21/Nwoe2DCagTHf3xn.png"/></td>
-    <td><img src="https://s2.loli.net/2025/06/21/Kirp1LucGdH8YOy.png"/></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="https://s2.loli.net/2025/06/21/Yf5pVHRLk9314Fl.png"/></td>
-  </tr>
-</table> 
-
-
 
 <table>
   <tr>
