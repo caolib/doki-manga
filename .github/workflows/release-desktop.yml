@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g., v1.4.0)'
+        description: "Tag to build (e.g., v1.4.0)"
         required: true
         type: string
 
@@ -53,7 +53,7 @@ jobs:
             args: ""
           - platform: "windows-latest"
             args: ""
-            
+
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout doki source code
@@ -114,7 +114,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
-          releaseName: "Release ${{ github.event.client_payload.tag || github.event.inputs.tag }}"
+          releaseName: "Desktop ${{ github.event.client_payload.tag || github.event.inputs.tag }}"
           releaseBody: ${{ needs.release-notes.outputs.release_body || 'See the assets to download this version and install.' }}
           releaseDraft: false
           prerelease: ${{ env.prerelease }}
