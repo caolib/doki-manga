@@ -5,14 +5,27 @@ on:
     types: [build-release]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version number"
-        required: true
-        default: "v1.4.6"
+      tag:
+        description: "Tag to build"
+        required: false
         type: string
+      version:
+        description: "Version to build"
+        required: false
+        type: string
+      android_tag:
+        description: "Android tag to build"
+        required: false
+        type: string
+      build_android:
+        description: "Build android"
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   quick-build:
+    if: github.event.client_payload.build_android == true || github.event.inputs.build_android == true
     runs-on: ubuntu-22.04
 
     steps:
