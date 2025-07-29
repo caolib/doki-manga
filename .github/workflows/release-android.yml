@@ -1,0 +1,302 @@
+name: "android-release"
+
+on:
+  repository_dispatch:
+    types: [build-release]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number"
+        required: true
+        default: "v1.4.6"
+        type: string
+
+jobs:
+  quick-build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Debug workflow inputs
+        run: |
+          echo "Repository dispatch version: ${{ github.event.client_payload.version }}"
+          echo "Manual input version: ${{ github.event.inputs.version }}"
+          echo "Tag from client_payload: ${{ github.event.client_payload.tag }}"
+          echo "Source repo: ${{ github.event.client_payload.source_repo }}"
+
+      - name: Checkout repository (mobile branch)
+        uses: actions/checkout@v4
+        with:
+          repository: caolib/doki
+          ref: mobile
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+          
+      - name: Install frontend dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install Rust stable with Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          cache-all-crates: true
+
+      - name: Cache system dependencies
+        uses: actions/cache@v4
+        id: system-cache
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install system dependencies
+        if: steps.system-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Cache Gradle wrapper and distributions
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches
+            src-tauri/gen/android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        id: android-cache
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}
+            ~/.android
+          key: ${{ runner.os }}-android-sdk-34-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-34-
+            ${{ runner.os }}-android-sdk-
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        if: steps.android-cache.outputs.cache-hit != 'true'
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;26.1.10909125" \
+            "cmdline-tools;latest"
+
+      - name: Set Android environment variables
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          
+          echo "Android环境变量设置："
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "NDK_HOME: $ANDROID_HOME/ndk/26.1.10909125"
+
+      - name: Update version in tauri.conf.json
+        run: |
+          VERSION="${{ github.event.client_payload.version || github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          echo "Updated version to: $VERSION"
+
+      - name: Cache frontend build
+        uses: actions/cache@v4
+        id: frontend-cache
+        with:
+          path: |
+            dist
+            .next
+            node_modules/.cache
+          key: ${{ runner.os }}-frontend-${{ hashFiles('**/package.json', '**/pnpm-lock.yaml', 'src/**', 'public/**') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
+
+      - name: Build frontend
+        if: steps.frontend-cache.outputs.cache-hit != 'true'
+        run: pnpm build
+
+      - name: Cache Tauri Android generation
+        uses: actions/cache@v4
+        id: tauri-android-cache
+        with:
+          path: src-tauri/gen/android
+          key: ${{ runner.os }}-tauri-android-${{ hashFiles('src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-tauri-android-
+
+      - name: Initialize Tauri Android project (if needed)
+        if: steps.tauri-android-cache.outputs.cache-hit != 'true'
+        run: |
+          if [ ! -d "src-tauri/gen/android" ]; then
+            pnpm tauri android init
+          fi
+
+      - name: Setup Gradle wrapper and fix download issues
+        run: |
+          cd src-tauri/gen/android
+          
+          # 检查gradle-wrapper.properties
+          if [ -f gradle/wrapper/gradle-wrapper.properties ]; then
+            echo "当前Gradle配置："
+            cat gradle/wrapper/gradle-wrapper.properties
+            
+            # 替换下载URL为更稳定的镜像
+            sed -i 's|https://services.gradle.org/distributions/|https://downloads.gradle.org/distributions/|g' gradle/wrapper/gradle-wrapper.properties
+            
+            echo "修改后的Gradle配置："
+            cat gradle/wrapper/gradle-wrapper.properties
+          fi
+          
+          # 验证gradlew权限
+          chmod +x gradlew
+          
+          # 尝试预下载Gradle（带重试机制）
+          echo "预下载Gradle包..."
+          for i in {1..3}; do
+            echo "尝试 $i/3..."
+            if ./gradlew --version; then
+              echo "✅ Gradle下载成功"
+              break
+            else
+              echo "⚠️ 第$i次尝试失败，等待10秒后重试..."
+              sleep 10
+            fi
+            
+            if [ $i -eq 3 ]; then
+              echo "❌ Gradle下载失败，尝试手动下载..."
+              
+              # 手动下载Gradle
+              GRADLE_VERSION=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d'/' -f6 | cut -d'-' -f2)
+              echo "检测到Gradle版本: $GRADLE_VERSION"
+              
+              mkdir -p ~/.gradle/wrapper/dists/gradle-$GRADLE_VERSION-bin
+              cd ~/.gradle/wrapper/dists/gradle-$GRADLE_VERSION-bin
+              
+              # 尝试多个下载源
+              GRADLE_URLS=(
+                "https://downloads.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip"
+                "https://github.com/gradle/gradle/releases/download/v$GRADLE_VERSION.0/gradle-$GRADLE_VERSION-bin.zip"
+                "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip"
+              )
+              
+              for url in "${GRADLE_URLS[@]}"; do
+                echo "尝试从 $url 下载..."
+                if wget -q --timeout=30 --tries=2 "$url"; then
+                  echo "✅ 手动下载成功"
+                  break
+                fi
+              done
+            fi
+          done
+
+      - name: Setup Android signing (if secrets available)
+        run: |
+          cd src-tauri
+          if [ -n "${{ secrets.DOKI_KEYSTORE_BASE64 }}" ]; then
+            base64 -d <<< "${{ secrets.DOKI_KEYSTORE_BASE64 }}" > doki-release-key.keystore
+            echo "✅ 密钥文件已恢复"
+          else
+            echo "⚠️ 未找到签名密钥，将构建未签名APK"
+          fi
+
+      # 移除特定架构选择，构建所有架构
+      - name: Install all Android Rust targets
+        run: |
+          echo "安装所有Android Rust目标..."
+          rustup target add aarch64-linux-android
+          rustup target add armv7-linux-androideabi  
+          rustup target add i686-linux-android
+          rustup target add x86_64-linux-android
+          echo "✅ 所有Android Rust目标已安装"
+
+      - name: Build Android APK for all platforms
+        run: |
+          echo "开始构建Android APK"
+          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.jvmargs=-Xmx2g"
+          pnpm run build:android
+
+      - name: List generated APK files
+        run: |
+          echo "检查生成的APK文件..."
+          
+          # 检查原始APK目录
+          ORIGINAL_APK_DIR="src-tauri/gen/android/app/build/outputs/apk/universal/release"
+          if [ -d "$ORIGINAL_APK_DIR" ]; then
+            echo "原始APK目录内容："
+            ls -la "$ORIGINAL_APK_DIR"
+          fi
+          
+          echo ""
+          echo "查找所有APK文件（包括重命名后的）："
+          find . -name "*.apk" -type f -exec ls -lh {} \; | while read line; do
+            echo "  $line"
+          done
+          
+          APK_COUNT=$(find . -name "*.apk" -type f | wc -l)
+          echo ""
+          echo "总共找到 $APK_COUNT 个APK文件"
+
+      - name: Create Android Release and Upload APKs
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.event.client_payload.version, 'v') || startsWith(github.event.inputs.version, 'v')
+        with:
+          tag_name: ${{ github.event.client_payload.android_tag || format('{0}-android', github.event.client_payload.version || github.event.inputs.version) }}
+          name: "Android Release ${{ github.event.client_payload.version || github.event.inputs.version }}"
+          draft: false
+          prerelease: false
+          body: |
+            🤖 **Android版本 ${{ github.event.client_payload.version || github.event.inputs.version }}**
+            - 应用版本：${{ github.event.client_payload.version || github.event.inputs.version }}
+            - 构建时间：${{ github.run_id }}
+          files: |
+            **/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
