@@ -1,4 +1,4 @@
-name: "doki-manga-release"
+name: "desktop-release"
 
 on:
   repository_dispatch:
@@ -53,6 +53,7 @@ jobs:
             args: ""
           - platform: "windows-latest"
             args: ""
+            
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout doki source code

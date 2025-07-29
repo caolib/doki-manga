@@ -2,13 +2,7 @@ name: "cache-monitor"
 
 on:
   repository_dispatch:
-    types: [build-release]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to build (e.g., v1.4.0)'
-        required: true
-        type: string
 
 
 jobs:
