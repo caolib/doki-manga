@@ -29,7 +29,6 @@ doki是拷贝漫画的一个第三方客户端，提供简洁快速的漫画阅�
     <td><img src="https://s2.loli.net/2025/07/28/v8Xyu961gHTGZsp.png"/></td>
   </tr>
 </table> 
-
 ### 1.2 桌面端
 
 <table>
