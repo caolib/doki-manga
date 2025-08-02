@@ -24,34 +24,6 @@ on:
         default: true
 
 jobs:
-  debug-payload:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Debug all payload data
-        run: |
-          echo "=== GitHub Event Debug ==="
-          echo "Event name: ${{ github.event_name }}"
-          echo "Event action: ${{ github.event.action }}"
-          echo "Repository: ${{ github.repository }}"
-
-          echo "=== Client Payload Debug ==="
-          echo "Raw client_payload: ${{ toJson(github.event.client_payload) }}"
-          echo "build_android value: '${{ github.event.client_payload.build_android }}'"
-          echo "build_android type: $(echo '${{ github.event.client_payload.build_android }}' | jq -r 'type')"
-
-          echo "=== Condition Check ==="
-          if [ "${{ github.event.client_payload.build_android }}" = "true" ]; then
-            echo "✅ build_android equals string 'true'"
-          else
-            echo "❌ build_android does NOT equal string 'true'"
-          fi
-
-          if [ "${{ github.event.client_payload.build_android }}" = true ]; then
-            echo "✅ build_android equals boolean true"
-          else
-            echo "❌ build_android does NOT equal boolean true"
-          fi
-
   quick-build:
     if: github.event.client_payload.build_android == true || github.event.inputs.build_android == true
     runs-on: ubuntu-22.04

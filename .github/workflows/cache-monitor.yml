@@ -1,4 +1,6 @@
 name: "Cache Monitor"
+permissions:
+  issues: write
 
 on:
   repository_dispatch:
