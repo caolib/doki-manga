@@ -271,7 +271,7 @@ jobs:
         run: |
           echo "开始构建Android APK"
           export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.jvmargs=-Xmx2g"
-          pnpm run build:android
+          pnpm gen
 
       - name: List generated APK files
         run: |
