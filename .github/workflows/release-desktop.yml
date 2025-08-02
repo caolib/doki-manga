@@ -21,7 +21,7 @@ on:
 
 jobs:
   publish-tauri:
-    if: github.event.client_payload.build_desktop == true || github.event.inputs.build_desktop == true
+    if: github.event.client_payload.build_desktop == 'true' || github.event.inputs.build_desktop == true
     runs-on: ubuntu-22.04
     outputs:
       release_body: ${{ steps.release_notes.outputs.release_body }}
