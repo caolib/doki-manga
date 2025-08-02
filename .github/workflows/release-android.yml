@@ -25,7 +25,7 @@ on:
 
 jobs:
   quick-build:
-    if: github.event.client_payload.build_android == true || github.event.inputs.build_android == true
+    if: github.event.client_payload.build_android == 'true' || github.event.inputs.build_android == true
     runs-on: ubuntu-22.04
 
     steps:
@@ -201,10 +201,8 @@ jobs:
             echo "当前Gradle配置："
             cat gradle/wrapper/gradle-wrapper.properties
             
-            # 替换下载URL为更稳定的镜像
             sed -i 's|https://services.gradle.org/distributions/|https://downloads.gradle.org/distributions/|g' gradle/wrapper/gradle-wrapper.properties
             
-            echo "修改后的Gradle配置："
             cat gradle/wrapper/gradle-wrapper.properties
           fi
 
@@ -260,7 +258,6 @@ jobs:
             echo "⚠️ 未找到签名密钥，将构建未签名APK"
           fi
 
-      # 移除特定架构选择，构建所有架构
       - name: Install all Android Rust targets
         run: |
           echo "安装所有Android Rust目标..."
@@ -305,10 +302,7 @@ jobs:
           name: "APP ${{ github.event.client_payload.version || github.event.inputs.version }}"
           draft: false
           prerelease: false
-          body: |
-            🤖 **Android版本 ${{ github.event.client_payload.version || github.event.inputs.version }}**
-            - 应用版本：${{ github.event.client_payload.version || github.event.inputs.version }}
-            - 构建时间：${{ github.run_id }}
+          body: ""
           files: |
             **/*.apk
         env:
