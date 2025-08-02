@@ -53,7 +53,7 @@ jobs:
           fi
 
   quick-build:
-    if: github.event.client_payload.build_android == true || github.event.inputs.build_android == true
+    if: github.event.client_payload.build_android == 'true' || github.event.inputs.build_android == true
     runs-on: ubuntu-22.04
 
     steps:
