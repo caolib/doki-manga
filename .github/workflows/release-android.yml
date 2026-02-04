@@ -110,18 +110,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        id: android-cache
-        with:
-          path: |
-            ${{ env.ANDROID_HOME }}
-            ~/.android
-          key: ${{ runner.os }}-android-sdk-34-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-34-
-            ${{ runner.os }}-android-sdk-
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
@@ -132,7 +120,6 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK components
-        if: steps.android-cache.outputs.cache-hit != 'true'
         run: |
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
