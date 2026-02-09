@@ -1,18 +1,18 @@
 <h1 align="center">
 <img src=".\img\logo.png"/>
 </h1>
+
+<p align="center">
+  <img alt="Static Badge" src="https://img.shields.io/badge/status-alive-green?style=flat">
+  <img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/caolib/doki-manga">
+  <img src="https://img.shields.io/github/stars/caolib/doki-manga" alt="Stars"/>
+  <img src="https://img.shields.io/github/downloads/caolib/doki-manga/latest/total" alt="Latest Downloads"/>
+</p>
+
 <p align="center">
   <img src="https://skillicons.dev/icons?i=tauri,vue,js,rust,pinia,scss,vite,pnpm"/>
 </p>
 
-
-
-<p align="center">
-  <img src="https://img.shields.io/github/downloads/caolib/doki-manga/total?labelColor=grey&color=blue" alt="Downloads"/>
-  <img src="https://img.shields.io/github/v/release/caolib/doki-manga?labelColor=grey&color=red" alt="Release"/>
-  <img src="https://img.shields.io/github/stars/caolib/doki-manga" alt="Stars"/>
-  <img src="https://img.shields.io/github/downloads/caolib/doki-manga/latest/total" alt="Latest Downloads"/>
-</p>
 
 
 ## 1 介绍
@@ -80,7 +80,7 @@ doki是拷贝漫画的一个第三方客户端，提供简洁快速的漫画阅�
 
 > [!caution]
 >
-> - 本应用为非官方第三方客户端，仅供学习和技术交流使用,可能会导致账号出现封禁风险，请谨慎使用
+> - 本应用为非官方第三方客户端，仅供学习和技术交流使用,可能会导致账号封禁
 > - 本应用不拥有任何漫画作品的版权，所有内容均来源于第三方API
 > - 用户在使用本应用时应遵守当地法律法规
 > - 本应用开发者不对应用中展示的任何内容承担法律责任
