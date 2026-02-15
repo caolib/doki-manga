@@ -289,7 +289,7 @@ jobs:
           name: "APP ${{ github.event.client_payload.version || github.event.inputs.version }}"
           draft: false
           prerelease: false
-          body: ""
+          body: "一般现在的手机都是下载 arm64-v8a 这个版本"
           files: |
             **/*.apk
         env:
