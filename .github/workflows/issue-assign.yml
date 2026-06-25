@@ -1,0 +1,34 @@
+name: 自动分配 Issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: 根据平台分配负责人
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+
+            if (body.includes("移动端") || body.includes("### 平台") && body.includes("移动端")) {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                assignees: ["unlimitedcodeG"]
+              });
+            } else {
+              // 默认桌面端
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                assignees: ["caolib"]
+              });
+            }

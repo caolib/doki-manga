@@ -1,0 +1,39 @@
+name: 功能请求
+description: 提出新功能或改进建议
+title: "[Feature] "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      description: 此功能适用于哪个平台？
+      options:
+        - 桌面端
+        - 移动端
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 功能描述
+      description: 清晰简洁地描述你想要的功能
+      placeholder: 我希望...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: 使用场景
+      description: 描述这个功能能解决什么问题
+      placeholder: 当...时，我遇到的问题是...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 补充信息
+      description: 截图、参考链接等其他信息
