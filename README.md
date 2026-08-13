@@ -13,6 +13,11 @@
   <img src="https://skillicons.dev/icons?i=tauri,vue,js,rust,pinia,scss,vite,pnpm"/>
 </p>
 
+> [!warning]
+>
+> 现在更推荐使用 [kira](https://github.com/caolib/kira) 了，从拷贝迁移过去的请优先使用「网页登录」方式
+>
+> 抱歉了，个人时间和精力都有限，无法同时维护
 
 
 ## 1 介绍
